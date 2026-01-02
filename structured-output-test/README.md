@@ -100,6 +100,16 @@ The `@modelcontextprotocol/server-everything` provides various test tools includ
 
 ## Usage
 
+### Quick Demo (No API Keys Required)
+
+See the tool call detection in action without any API keys:
+
+```bash
+npm run demo
+```
+
+This runs through 5 test cases showing how the detection logic works with different LLM response formats.
+
 ### Run the Example
 
 ```bash

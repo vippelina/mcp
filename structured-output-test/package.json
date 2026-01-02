@@ -8,7 +8,8 @@
     "build": "tsc",
     "test": "vitest run",
     "test:watch": "vitest watch",
-    "start": "tsx src/index.ts"
+    "start": "tsx src/index.ts",
+    "demo": "tsx demo.ts"
   },
   "keywords": [
     "llm",
