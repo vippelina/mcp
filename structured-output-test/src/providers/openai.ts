@@ -1,0 +1,99 @@
+/**
+ * OpenAI LLM Provider
+ */
+
+import type { Tool } from '@modelcontextprotocol/sdk/types.js';
+import type { LLMProvider, LLMProviderConfig, Message } from '../types.js';
+
+export class OpenAIProvider implements LLMProvider {
+    readonly name = 'openai';
+    private readonly apiKey: string;
+    private readonly model: string;
+    private readonly endpoint: string;
+
+    constructor(config: LLMProviderConfig) {
+        this.apiKey = config.apiKey;
+        this.model = config.model || 'gpt-4o';
+        this.endpoint = config.endpoint || 'https://api.openai.com/v1/chat/completions';
+    }
+
+    supportsNativeToolCalling(): boolean {
+        return true;
+    }
+
+    private buildToolPrompt(tools: Tool[]): string {
+        const toolDescriptions = tools.map(tool => {
+            let desc = `Tool: ${tool.name}\n`;
+            desc += `Description: ${tool.description || 'No description'}\n`;
+            desc += 'Arguments:\n';
+            
+            if (tool.inputSchema && typeof tool.inputSchema === 'object' && 'properties' in tool.inputSchema) {
+                const schema = tool.inputSchema as { properties?: Record<string, unknown>; required?: string[] };
+                const props = schema.properties || {};
+                const argsList: string[] = [];
+                
+                for (const [paramName, paramInfo] of Object.entries(props)) {
+                    const info = paramInfo as { description?: string; type?: string };
+                    let argDesc = `- ${paramName}`;
+                    if (info.type) {
+                        argDesc += ` (${info.type})`;
+                    }
+                    if (info.description) {
+                        argDesc += `: ${info.description}`;
+                    }
+                    if (schema.required?.includes(paramName)) {
+                        argDesc += ' (required)';
+                    }
+                    argsList.push(argDesc);
+                }
+                desc += argsList.join('\n');
+            }
+            
+            return desc;
+        }).join('\n\n');
+
+        return `You have access to the following tools:\n\n${toolDescriptions}\n\n` +
+            'When you need to use a tool, respond ONLY with a JSON object in this exact format:\n' +
+            '{\n' +
+            '    "tool": "tool-name",\n' +
+            '    "arguments": {\n' +
+            '        "argument-name": "value"\n' +
+            '    }\n' +
+            '}\n\n' +
+            'Do not include any other text in your response when calling a tool.\n' +
+            'If you do not need to use a tool, respond normally with text.';
+    }
+
+    async generateResponse(messages: Message[], tools: Tool[]): Promise<string> {
+        // Add tool instructions to system message
+        const systemPrompt = this.buildToolPrompt(tools);
+        const messagesWithTools = [
+            { role: 'system' as const, content: systemPrompt },
+            ...messages.filter(m => m.role !== 'system')
+        ];
+
+        const response = await fetch(this.endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.apiKey}`
+            },
+            body: JSON.stringify({
+                model: this.model,
+                messages: messagesWithTools,
+                temperature: 0.7
+            })
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.text();
+            throw new Error(`OpenAI API error: ${response.status} ${response.statusText} - ${errorBody}`);
+        }
+
+        const data = await response.json() as {
+            choices: Array<{ message: { content: string } }>;
+        };
+
+        return data.choices[0]?.message?.content || 'No response from LLM';
+    }
+}
