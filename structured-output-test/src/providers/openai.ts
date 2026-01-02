@@ -13,7 +13,7 @@ export class OpenAIProvider implements LLMProvider {
 
     constructor(config: LLMProviderConfig) {
         this.apiKey = config.apiKey;
-        this.model = config.model || 'gpt-4o-mini';
+        this.model = config.model || 'gpt-4o';
         this.endpoint = config.endpoint || 'https://api.openai.com/v1/chat/completions';
     }
 

@@ -13,7 +13,7 @@ export class AnthropicProvider implements LLMProvider {
 
     constructor(config: LLMProviderConfig) {
         this.apiKey = config.apiKey;
-        this.model = config.model || 'claude-3-5-sonnet-20241022';
+        this.model = config.model || 'claude-3-5-sonnet-20240620';
         this.endpoint = config.endpoint || 'https://api.anthropic.com/v1/messages';
     }
 
